@@ -939,7 +939,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 b.h = (b.h < 1) ? b.h : 1;
                 b.x = (b.x < 1) ? b.x : 1;
                 b.y = (b.y < 1) ? b.y : 1;
-                //printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
+                //printf(" b.x = %f | b.y = %f | b.w = %f  | b.h = %f\n", b.x, b.y, b.w, b.h);
 
                 int left = (b.x - b.w / 2.)*show_img->cols;
                 int right = (b.x + b.w / 2.)*show_img->cols;
@@ -951,11 +951,13 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 if (top < 0) top = 0;
                 if (bot > show_img->rows - 1) bot = show_img->rows - 1;
 
-                //int b_x_center = (left + right) / 2;
-                //int b_y_center = (top + bot) / 2;
-                //int b_width = right - left;
-                //int b_height = bot - top;
-                //sprintf(labelstr, "%d x %d - w: %d, h: %d", b_x_center, b_y_center, b_width, b_height);
+                //printf(" Left = %f | Right = %f | Top = %f  | Bottom = %f\n", left, right, top, bot);
+
+                int b_x_center = (left + right) / 2;
+                int b_y_center = (top + bot) / 2;
+                int b_width = right - left;
+                int b_height = bot - top;
+                printf("| BB center (X x Y) = %d x %d | BB Width: %d, BB Height: %d", b_x_center, b_y_center, b_width, b_height);
 
                 float const font_size = show_img->rows / 1000.F;
                 cv::Size const text_size = cv::getTextSize(labelstr, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, 1, 0);
