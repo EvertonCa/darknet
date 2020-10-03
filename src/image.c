@@ -1547,6 +1547,7 @@ image load_image(char *filename, int w, int h, int c)
         free_image(out);
         out = resized;
     }
+
     return out;
 }
 

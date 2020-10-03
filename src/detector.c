@@ -1628,18 +1628,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     int j;
     float nms = .45;    // 0.4F
     while (1) {
-        if (filename) {
-            strncpy(input, filename, 256);
-            if (strlen(input) > 0)
-                if (input[strlen(input) - 1] == 0x0d) input[strlen(input) - 1] = 0;
-        }
-        else {
-            printf("Enter Image Path: ");
-            fflush(stdout);
-            input = fgets(input, 256, stdin);
-            if (!input) break;
-            strtok(input, "\n");
-        }
+        input = "shared";
         //image im;
         //image sized = load_image_resize(input, net.w, net.h, net.c, &im);
         image im = load_image(input, 0, 0, net.c);
@@ -1662,6 +1651,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         //for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = (float*)xcalloc(l.classes, sizeof(float));
 
         float *X = sized.data;
+
+        printf("%f\n", *X);
 
         //time= what_time_is_it_now();
         double time = get_time_point();
@@ -1725,7 +1716,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         free_image(sized);
 
         if (!dont_show) {
-            wait_until_press_key_cv();
+            //wait_until_press_key_cv();
             destroy_all_windows_cv();
         }
 

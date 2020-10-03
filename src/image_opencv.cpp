@@ -21,6 +21,13 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/video/video.hpp>
 
+#include <semaphore.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <fcntl.h>
+
 // includes for OpenCV >= 3.x
 #ifndef CV_VERSION_EPOCH
 #include <opencv2/core/types.hpp>
@@ -76,6 +83,12 @@ using std::endl;
 #ifndef CV_AA
 #define CV_AA cv::LINE_AA
 #endif
+
+#define HEIGHT 480
+#define WIDTH 640
+#define CHANNELS 3
+#define CAMERA_BLOCK_SIZE (WIDTH*HEIGHT*CHANNELS)
+#define IPC_RESULT_ERROR (-1)
 
 extern "C" {
 
@@ -158,12 +171,72 @@ cv::Mat load_image_mat(char *filename, int channels)
 
 extern "C" image load_image_cv(char *filename, int channels)
 {
-    cv::Mat mat = load_image_mat(filename, channels);
+    if (strcmp(filename, "shared")){
+        //std::cout << "Entrei " << filename << std::endl;
+        cv::Mat mat = load_image_mat(filename, channels);
 
-    if (mat.empty()) {
-        return make_image(10, 10, channels);
+        if (mat.empty()) {
+            return make_image(10, 10, channels);
+        }
+
+        //std::cout << "Sai" << std::endl;
+        return mat_to_image(mat);
+
+    } else {
+
+        sem_t *sem_prod_cam = sem_open("/yolocamproducer", 0);
+        if (sem_prod_cam == SEM_FAILED) {
+            perror("sem_open/yolocamproducer");
+            exit(EXIT_FAILURE);
+        }
+
+        sem_t *sem_cons_cam = sem_open("/yolocamconsumer", 1);
+        if (sem_cons_cam == SEM_FAILED) {
+            perror("sem_open/yolocamconsumer");
+            exit(EXIT_FAILURE);
+        }
+
+        key_t key;
+
+        // request a key
+        // the key is linked to a filename, so that other programs can access it
+        if (-1 != open("/tmp/blockcam", O_CREAT, 0777)) {
+            key = key = ftok("/tmp/blockcam", 0);
+        } else {
+            perror("open");
+            exit(1);
+        }
+
+        // get shared block --- create it if it doesn't exist
+        int shared_block_id = shmget(key, CAMERA_BLOCK_SIZE, IPC_CREAT | SHM_R | SHM_W );
+
+        char *result;
+
+        if (shared_block_id == IPC_RESULT_ERROR) {
+            result = NULL;
+        }
+
+        //map the shared block int this process's memory and give me a pointer to it
+        result = (char*) shmat(shared_block_id, NULL, 0);
+        if (result == (char *)IPC_RESULT_ERROR) {
+            result = NULL;
+        }
+
+        sem_wait(sem_prod_cam); // wait for the producer to have an open slot
+        cv::Mat temp = cv::Mat(HEIGHT, WIDTH, 16, result, CHANNELS * WIDTH); // creates a frame from memory
+        cv::Mat mat;
+        cv::cvtColor(temp, mat, cv::COLOR_BGR2RGB);
+        sem_post(sem_cons_cam); // signal that data was acquired
+
+        sem_close(sem_prod_cam);
+        sem_close(sem_cons_cam);
+
+        if (mat.empty()) {
+            return make_image(10, 10, CHANNELS);
+        }
+
+        return mat_to_image(mat);
     }
-    return mat_to_image(mat);
 }
 // ----------------------------------------
 
@@ -388,7 +461,8 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 extern "C" void destroy_all_windows_cv()
 {
     try {
-        cv::destroyAllWindows();
+        cv::waitKey(1000/30);
+        //cv::destroyAllWindows();
     }
     catch (...) {
         cerr << "OpenCV exception: destroy_all_windows_cv \n";
