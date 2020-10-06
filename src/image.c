@@ -938,8 +938,8 @@ int best_3d_shift(image a, image b, int min, int max)
 void composite_3d(char *f1, char *f2, char *out, int delta)
 {
     if(!out) out = "out";
-    image a = load_image(f1, 0,0,0);
-    image b = load_image(f2, 0,0,0);
+    image a = load_image(f1, 0,0,0, NULL);
+    image b = load_image(f2, 0,0,0, NULL);
     int shift = best_3d_shift_r(a, b, -a.h/100, a.h/100);
 
     image c1 = crop_image(b, 10, shift, b.w, b.h);
@@ -1435,7 +1435,7 @@ image resize_image(image im, int w, int h)
 
 void test_resize(char *filename)
 {
-    image im = load_image(filename, 0,0, 3);
+    image im = load_image(filename, 0,0, 3, NULL);
     float mag = mag_array(im.data, im.w*im.h*im.c);
     printf("L2 Norm: %f\n", mag);
     image gray = grayscale_image(im);
@@ -1533,11 +1533,11 @@ image load_image_stb_resize(char *filename, int w, int h, int c)
     return out;
 }
 
-image load_image(char *filename, int w, int h, int c)
+image load_image(char *filename, int w, int h, int c, char *result)
 {
 #ifdef OPENCV
     //image out = load_image_stb(filename, c);
-    image out = load_image_cv(filename, c);
+    image out = load_image_cv(filename, c, result);
 #else
     image out = load_image_stb(filename, c);    // without OpenCV
 #endif  // OPENCV
@@ -1553,7 +1553,7 @@ image load_image(char *filename, int w, int h, int c)
 
 image load_image_color(char *filename, int w, int h)
 {
-    return load_image(filename, w, h, 3);
+    return load_image(filename, w, h, 3, NULL);
 }
 
 image get_image_layer(image m, int l)

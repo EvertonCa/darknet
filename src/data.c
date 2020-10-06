@@ -128,7 +128,7 @@ matrix load_image_paths_gray(char **paths, int n, int w, int h)
     X.cols = 0;
 
     for(i = 0; i < n; ++i){
-        image im = load_image(paths[i], w, h, 3);
+        image im = load_image(paths[i], w, h, 3, NULL);
 
         image gray = grayscale_image(im);
         free_image(im);
@@ -1594,10 +1594,10 @@ void *load_thread(void *ptr)
     } else if (a.type == COMPARE_DATA){
         *a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h);
     } else if (a.type == IMAGE_DATA){
-        *(a.im) = load_image(a.path, 0, 0, a.c);
+        *(a.im) = load_image(a.path, 0, 0, a.c, NULL);
         *(a.resized) = resize_image(*(a.im), a.w, a.h);
     }else if (a.type == LETTERBOX_DATA) {
-        *(a.im) = load_image(a.path, 0, 0, a.c);
+        *(a.im) = load_image(a.path, 0, 0, a.c, NULL);
         *(a.resized) = letterbox_image(*(a.im), a.w, a.h);
     } else if (a.type == TAG_DATA){
         *a.d = load_data_tag(a.paths, a.n, a.m, a.classes, a.flip, a.min, a.max, a.w, a.h, a.angle, a.aspect, a.hue, a.saturation, a.exposure);

@@ -27,6 +27,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 // includes for OpenCV >= 3.x
 #ifndef CV_VERSION_EPOCH
@@ -169,7 +170,7 @@ cv::Mat load_image_mat(char *filename, int channels)
 }
 // ----------------------------------------
 
-extern "C" image load_image_cv(char *filename, int channels)
+extern "C" image load_image_cv(char *filename, int channels, char *result)
 {
     if (strcmp(filename, "shared")){
         //std::cout << "Entrei " << filename << std::endl;
@@ -184,52 +185,9 @@ extern "C" image load_image_cv(char *filename, int channels)
 
     } else {
 
-        sem_t *sem_prod_cam = sem_open("/yolocamproducer", 0);
-        if (sem_prod_cam == SEM_FAILED) {
-            perror("sem_open/yolocamproducer");
-            exit(EXIT_FAILURE);
-        }
-
-        sem_t *sem_cons_cam = sem_open("/yolocamconsumer", 1);
-        if (sem_cons_cam == SEM_FAILED) {
-            perror("sem_open/yolocamconsumer");
-            exit(EXIT_FAILURE);
-        }
-
-        key_t key;
-
-        // request a key
-        // the key is linked to a filename, so that other programs can access it
-        if (-1 != open("/tmp/blockcam", O_CREAT, 0777)) {
-            key = key = ftok("/tmp/blockcam", 0);
-        } else {
-            perror("open");
-            exit(1);
-        }
-
-        // get shared block --- create it if it doesn't exist
-        int shared_block_id = shmget(key, CAMERA_BLOCK_SIZE, IPC_CREAT | SHM_R | SHM_W );
-
-        char *result;
-
-        if (shared_block_id == IPC_RESULT_ERROR) {
-            result = NULL;
-        }
-
-        //map the shared block int this process's memory and give me a pointer to it
-        result = (char*) shmat(shared_block_id, NULL, 0);
-        if (result == (char *)IPC_RESULT_ERROR) {
-            result = NULL;
-        }
-
-        sem_wait(sem_prod_cam); // wait for the producer to have an open slot
         cv::Mat temp = cv::Mat(HEIGHT, WIDTH, 16, result, CHANNELS * WIDTH); // creates a frame from memory
         cv::Mat mat;
         cv::cvtColor(temp, mat, cv::COLOR_BGR2RGB);
-        sem_post(sem_cons_cam); // signal that data was acquired
-
-        sem_close(sem_prod_cam);
-        sem_close(sem_cons_cam);
 
         if (mat.empty()) {
             return make_image(10, 10, CHANNELS);
