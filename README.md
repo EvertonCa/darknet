@@ -2,6 +2,8 @@
 
 ## (neural networks for object detection)
 
+THIS FORK WAS MODIFIED TO WORK WITH THIS PROJECT: [GesturesAR](https://github.com/EvertonCa/GesturesAR)
+
 Paper Yolo v4: https://arxiv.org/abs/2004.10934
 
 More details: [medium link](https://medium.com/@alexeyab84/yolov4-the-most-accurate-real-time-neural-network-on-ms-coco-dataset-73adfd3602fe?source=friends_link&sk=6039748846bbcf1d960c3061542591d7)
