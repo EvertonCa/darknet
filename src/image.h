@@ -8,6 +8,14 @@
 #include <string.h>
 #include <math.h>
 
+
+#include <semaphore.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <fcntl.h>
+
 #include "image_opencv.h"
 
 #include "box.h"
@@ -32,6 +40,7 @@ void draw_weighted_label(image a, int r, int c, image label, const float *rgb, c
 void write_label(image a, int r, int c, image *characters, char *string, float *rgb);
 void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **labels, int classes);
 void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output);
+void draw_detections_tcc(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output, sem_t *sem_cons_message, sem_t *sem_prod_message, char *result_message);
 image image_distance(image a, image b);
 void scale_image(image m, float s);
 // image crop_image(image im, int dx, int dy, int w, int h);

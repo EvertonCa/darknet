@@ -16,11 +16,19 @@
 #include <sys/shm.h>
 #include <fcntl.h>
 
-#define HEIGHT 480
-#define WIDTH 640
-#define CHANNELS 3
-#define CAMERA_BLOCK_SIZE (WIDTH*HEIGHT*CHANNELS)
+#define MESSAGE_BLOCK_SIZE 4096
+#define FILENAME_CAM "/tmp/blockcam"
 #define IPC_RESULT_ERROR (-1)
+#define CAMERA_HEIGHT 480
+#define CAMERA_WIDTH 640
+#define CAMERA_CHANNELS 3
+#define CAMERA_BLOCK_SIZE (CAMERA_WIDTH*CAMERA_HEIGHT*CAMERA_CHANNELS)
+#define CAMERA_REFRESH_RATE 30
+#define YOLO_SEM_CAM_PRODUCER_FNAME "/yolocamproducer"
+#define YOLO_SEM_CAM_CONSUMER_FNAME "/yolocamconsumer"
+#define FILENAME_MESSAGE_YOLO "/tmp/blockyolo"
+#define YOLO_SEM_MESSAGE_PRODUCER_FNAME "/yolomesproducer"
+#define YOLO_SEM_MESSAGE_CONSUMER_FNAME "/yolomesconsumer"
 
 #ifndef __COMPAR_FN_T
 #define __COMPAR_FN_T
@@ -1641,42 +1649,86 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     int j;
     float nms = .45;    // 0.4F
 
-    sem_t *sem_prod_cam = sem_open("/yolocamproducer", 0);
+    // SEMAPHORES
+
+    sem_t *sem_prod_cam = sem_open(YOLO_SEM_CAM_PRODUCER_FNAME, 0);
     if (sem_prod_cam == SEM_FAILED) {
         perror("sem_open/yolocamproducer");
         exit(EXIT_FAILURE);
     }
 
-    sem_t *sem_cons_cam = sem_open("/yolocamconsumer", 1);
+    sem_t *sem_cons_cam = sem_open(YOLO_SEM_CAM_CONSUMER_FNAME, 1);
     if (sem_cons_cam == SEM_FAILED) {
         perror("sem_open/yolocamconsumer");
         exit(EXIT_FAILURE);
     }
 
-    key_t key;
+    sem_t *sem_prod_message = sem_open(YOLO_SEM_MESSAGE_PRODUCER_FNAME, 0);
+    if (sem_prod_message == SEM_FAILED) {
+        perror("sem_open/yolocamproducer");
+        exit(EXIT_FAILURE);
+    }
+
+    sem_t *sem_cons_message = sem_open(YOLO_SEM_MESSAGE_CONSUMER_FNAME, 1);
+    if (sem_cons_message == SEM_FAILED) {
+        perror("sem_open/yolocamconsumer");
+        exit(EXIT_FAILURE);
+    }
+
+    // CAMERA SHARED MEMORY
+
+    key_t keyCam;
 
     // request a key
     // the key is linked to a filename, so that other programs can access it
-    if (-1 != open("/tmp/blockcam", O_CREAT, 0777)) {
-        key = ftok("/tmp/blockcam", 0);
+    if (-1 != open(FILENAME_CAM, O_CREAT, 0777)) {
+        keyCam = ftok(FILENAME_CAM, 0);
     } else {
         perror("open");
         exit(1);
     }
 
     // get shared block --- create it if it doesn't exist
-    int shared_block_id = shmget(key, CAMERA_BLOCK_SIZE, IPC_CREAT | SHM_R | SHM_W );
+    int shared_cam_block_id = shmget(keyCam, CAMERA_BLOCK_SIZE, IPC_CREAT | SHM_R | SHM_W );
 
-    char *result;
+    char *result_cam;
 
-    if (shared_block_id == IPC_RESULT_ERROR) {
-        result = NULL;
+    if (shared_cam_block_id == IPC_RESULT_ERROR) {
+        result_cam = NULL;
     }
 
     //map the shared block int this process's memory and give me a pointer to it
-    result = (char*) shmat(shared_block_id, NULL, 0);
-    if (result == (char *)IPC_RESULT_ERROR) {
-        result = NULL;
+    result_cam = (char*) shmat(shared_cam_block_id, NULL, 0);
+    if (result_cam == (char *)IPC_RESULT_ERROR) {
+        result_cam = NULL;
+    }
+
+    // MESSAGE SHARED MEMORY
+
+    key_t keyMes;
+
+    // request a key
+    // the key is linked to a filename, so that other programs can access it
+    if (-1 != open(FILENAME_MESSAGE_YOLO, O_CREAT, 0777)) {
+        keyMes = ftok(FILENAME_MESSAGE_YOLO, 0);
+    } else {
+        perror("open");
+        exit(1);
+    }
+
+    // get shared block --- create it if it doesn't exist
+    int shared_message_block_id = shmget(keyMes, MESSAGE_BLOCK_SIZE, IPC_CREAT | SHM_R | SHM_W );
+
+    char *result_message;
+
+    if (shared_message_block_id == IPC_RESULT_ERROR) {
+        result_message = NULL;
+    }
+
+    //map the shared block int this process's memory and give me a pointer to it
+    result_message = (char*) shmat(shared_message_block_id, NULL, 0);
+    if (result_message == (char *)IPC_RESULT_ERROR) {
+        result_message = NULL;
     }
 
     while (1) {
@@ -1685,7 +1737,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         //image sized = load_image_resize(input, net.w, net.h, net.c, &im);
         
         sem_wait(sem_prod_cam); // wait for the producer to have an open slot
-        image im = load_image(input, 0, 0, net.c, result);
+        image im = load_image(input, 0, 0, net.c, result_cam);
         sem_post(sem_cons_cam); // signal that data was acquired
 
         image sized;
@@ -1708,13 +1760,11 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 
         float *X = sized.data;
 
-        printf("%f\n", *X);
-
         //time= what_time_is_it_now();
         double time = get_time_point();
         network_predict(net, X);
         //network_predict_image(&net, im); letterbox = 1;
-        printf("%s: Predicted in %lf milli-seconds.\n", input, ((double)get_time_point() - time) / 1000);
+        printf("Predicted in %lf milli-seconds.\n", ((double)get_time_point() - time) / 1000);
         //printf("%s: Predicted in %f seconds.\n", input, (what_time_is_it_now()-time));
 
         int nboxes = 0;
@@ -1723,7 +1773,11 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
             else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
         }
-        draw_detections_v3(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output);
+
+
+        draw_detections_tcc(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output, sem_cons_message, sem_prod_message, result_message);
+
+
         save_image(im, "predictions");
         if (!dont_show) {
             show_image(im, "predictions");
@@ -1781,8 +1835,11 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 
     sem_close(sem_prod_cam);
     sem_close(sem_cons_cam);
+    sem_close(sem_prod_message);
+    sem_close(sem_cons_message);
 
-    shmdt(result);
+    shmdt(result_cam);
+    shmdt(result_message);
 
     if (json_file) {
         char *tmp = "\n]";
