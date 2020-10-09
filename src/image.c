@@ -492,10 +492,9 @@ void draw_detections_tcc(image im, detection *dets, int num, float thresh, char 
 
         cx = snprintf(temp, sizeof(temp), "Object Detected: %s: %.0f%%", names[best_class], selected_detections[i].det.prob[best_class] * 100);
 
-        snprintf(temp+cx, sizeof(temp)-cx, "\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-            round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
-            round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
-            round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
+        snprintf(temp+cx, sizeof(temp)-cx, "\t(center_x: %4.8f   center_y: %4.8f   width: %4.8f   height: %4.8f)\n",
+            selected_detections[i].det.bbox.x, selected_detections[i].det.bbox.y,
+            selected_detections[i].det.bbox.w, selected_detections[i].det.bbox.h);
 
         sem_wait(sem_cons_message); // wait for the consumer to have an open slot
         strncpy(result_message, temp, MESSAGE_BLOCK_SIZE);
