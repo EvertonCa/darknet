@@ -9,27 +9,6 @@
 #include "demo.h"
 #include "option_list.h"
 
-#include <semaphore.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <fcntl.h>
-
-#define MESSAGE_BLOCK_SIZE 4096
-#define FILENAME_CAM "/tmp/blockcam"
-#define IPC_RESULT_ERROR (-1)
-#define CAMERA_HEIGHT 480
-#define CAMERA_WIDTH 640
-#define CAMERA_CHANNELS 3
-#define CAMERA_BLOCK_SIZE (CAMERA_WIDTH*CAMERA_HEIGHT*CAMERA_CHANNELS)
-#define CAMERA_REFRESH_RATE 30
-#define YOLO_SEM_CAM_PRODUCER_FNAME "/yolocamproducer"
-#define YOLO_SEM_CAM_CONSUMER_FNAME "/yolocamconsumer"
-#define FILENAME_MESSAGE_YOLO "/tmp/blockyolo"
-#define YOLO_SEM_MESSAGE_PRODUCER_FNAME "/yolomesproducer"
-#define YOLO_SEM_MESSAGE_CONSUMER_FNAME "/yolomesconsumer"
-
 #ifndef __COMPAR_FN_T
 #define __COMPAR_FN_T
 typedef int (*__compar_fn_t)(const void*, const void*);
@@ -1649,97 +1628,168 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     int j;
     float nms = .45;    // 0.4F
 
-    // SEMAPHORES
+    char carrinho[60][150] = {"SIFT_database/Carrinho/Carrinho_H0_V0.jpg", "SIFT_database/Carrinho/Carrinho_H0_V15.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H0_V30.jpg", "SIFT_database/Carrinho/Carrinho_H0_V45.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H0_V60.jpg", "SIFT_database/Carrinho/Carrinho_H120_V0.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H120_V15.jpg", "SIFT_database/Carrinho/Carrinho_H120_V30.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H120_V45.jpg", "SIFT_database/Carrinho/Carrinho_H120_V60.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H150_V0.jpg", "SIFT_database/Carrinho/Carrinho_H150_V15.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H150_V30.jpg", "SIFT_database/Carrinho/Carrinho_H150_V45.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H150_V60.jpg", "SIFT_database/Carrinho/Carrinho_H180_V0.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H180_V15.jpg", "SIFT_database/Carrinho/Carrinho_H180_V30.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H180_V45.jpg", "SIFT_database/Carrinho/Carrinho_H180_V60.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H210_V0.jpg", "SIFT_database/Carrinho/Carrinho_H210_V15.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H210_V30.jpg", "SIFT_database/Carrinho/Carrinho_H210_V45.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H210_V60.jpg", "SIFT_database/Carrinho/Carrinho_H240_V0.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H240_V15.jpg", "SIFT_database/Carrinho/Carrinho_H240_V30.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H240_V45.jpg", "SIFT_database/Carrinho/Carrinho_H240_V60.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H270_V0.jpg", "SIFT_database/Carrinho/Carrinho_H270_V15.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H270_V30.jpg", "SIFT_database/Carrinho/Carrinho_H270_V45.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H270_V60.jpg", "SIFT_database/Carrinho/Carrinho_H300_V0.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H300_V15.jpg", "SIFT_database/Carrinho/Carrinho_H300_V30.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H300_V45.jpg", "SIFT_database/Carrinho/Carrinho_H300_V60.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H30_V0.jpg", "SIFT_database/Carrinho/Carrinho_H30_V15.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H30_V30.jpg", "SIFT_database/Carrinho/Carrinho_H30_V45.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H30_V60.jpg", "SIFT_database/Carrinho/Carrinho_H330_V0.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H330_V15.jpg", "SIFT_database/Carrinho/Carrinho_H330_V30.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H330_V45.jpg", "SIFT_database/Carrinho/Carrinho_H330_V60.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H60_V0.jpg", "SIFT_database/Carrinho/Carrinho_H60_V15.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H60_V30.jpg", "SIFT_database/Carrinho/Carrinho_H60_V45.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H60_V60.jpg", "SIFT_database/Carrinho/Carrinho_H90_V0.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H90_V15.jpg", "SIFT_database/Carrinho/Carrinho_H90_V30.jpg", 
+    "SIFT_database/Carrinho/Carrinho_H90_V45.jpg", "SIFT_database/Carrinho/Carrinho_H90_V60.jpg"};
 
-    sem_t *sem_prod_cam = sem_open(YOLO_SEM_CAM_PRODUCER_FNAME, 0);
-    if (sem_prod_cam == SEM_FAILED) {
-        perror("sem_open/yolocamproducer");
-        exit(EXIT_FAILURE);
-    }
+    char groot[60][150] = {"SIFT_database/Groot/Groot_H0_V0.jpg", "SIFT_database/Groot/Groot_H0_V15.jpg", 
+    "SIFT_database/Groot/Groot_H0_V30.jpg", "SIFT_database/Groot/Groot_H0_V45.jpg", 
+    "SIFT_database/Groot/Groot_H0_V60.jpg", "SIFT_database/Groot/Groot_H120_V0.jpg", 
+    "SIFT_database/Groot/Groot_H120_V15.jpg", "SIFT_database/Groot/Groot_H120_V30.jpg", 
+    "SIFT_database/Groot/Groot_H120_V45.jpg", "SIFT_database/Groot/Groot_H120_V60.jpg", 
+    "SIFT_database/Groot/Groot_H150_V0.jpg", "SIFT_database/Groot/Groot_H150_V15.jpg", 
+    "SIFT_database/Groot/Groot_H150_V30.jpg", "SIFT_database/Groot/Groot_H150_V45.jpg", 
+    "SIFT_database/Groot/Groot_H150_V60.jpg", "SIFT_database/Groot/Groot_H180_V0.jpg", 
+    "SIFT_database/Groot/Groot_H180_V15.jpg", "SIFT_database/Groot/Groot_H180_V30.jpg", 
+    "SIFT_database/Groot/Groot_H180_V45.jpg", "SIFT_database/Groot/Groot_H180_V60.jpg", 
+    "SIFT_database/Groot/Groot_H210_V0.jpg", "SIFT_database/Groot/Groot_H210_V15.jpg", 
+    "SIFT_database/Groot/Groot_H210_V30.jpg", "SIFT_database/Groot/Groot_H210_V45.jpg", 
+    "SIFT_database/Groot/Groot_H210_V60.jpg", "SIFT_database/Groot/Groot_H240_V0.jpg", 
+    "SIFT_database/Groot/Groot_H240_V15.jpg", "SIFT_database/Groot/Groot_H240_V30.jpg", 
+    "SIFT_database/Groot/Groot_H240_V45.jpg", "SIFT_database/Groot/Groot_H240_V60.jpg", 
+    "SIFT_database/Groot/Groot_H270_V0.jpg", "SIFT_database/Groot/Groot_H270_V15.jpg", 
+    "SIFT_database/Groot/Groot_H270_V30.jpg", "SIFT_database/Groot/Groot_H270_V45.jpg", 
+    "SIFT_database/Groot/Groot_H270_V60.jpg", "SIFT_database/Groot/Groot_H300_V0.jpg", 
+    "SIFT_database/Groot/Groot_H300_V15.jpg", "SIFT_database/Groot/Groot_H300_V30.jpg", 
+    "SIFT_database/Groot/Groot_H300_V45.jpg", "SIFT_database/Groot/Groot_H300_V60.jpg", 
+    "SIFT_database/Groot/Groot_H30_V0.jpg", "SIFT_database/Groot/Groot_H30_V15.jpg", 
+    "SIFT_database/Groot/Groot_H30_V30.jpg", "SIFT_database/Groot/Groot_H30_V45.jpg", 
+    "SIFT_database/Groot/Groot_H30_V60.jpg", "SIFT_database/Groot/Groot_H330_V0.jpg", 
+    "SIFT_database/Groot/Groot_H330_V15.jpg", "SIFT_database/Groot/Groot_H330_V30.jpg", 
+    "SIFT_database/Groot/Groot_H330_V45.jpg", "SIFT_database/Groot/Groot_H330_V60.jpg", 
+    "SIFT_database/Groot/Groot_H60_V0.jpg", "SIFT_database/Groot/Groot_H60_V15.jpg", 
+    "SIFT_database/Groot/Groot_H60_V30.jpg", "SIFT_database/Groot/Groot_H60_V45.jpg", 
+    "SIFT_database/Groot/Groot_H60_V60.jpg", "SIFT_database/Groot/Groot_H90_V0.jpg", 
+    "SIFT_database/Groot/Groot_H90_V15.jpg", "SIFT_database/Groot/Groot_H90_V30.jpg", 
+    "SIFT_database/Groot/Groot_H90_V45.jpg", "SIFT_database/Groot/Groot_H90_V60.jpg"};
 
-    sem_t *sem_cons_cam = sem_open(YOLO_SEM_CAM_CONSUMER_FNAME, 1);
-    if (sem_cons_cam == SEM_FAILED) {
-        perror("sem_open/yolocamconsumer");
-        exit(EXIT_FAILURE);
-    }
+    char ds4[60][150] = {"SIFT_database/DS4/DS4_H0_V0.jpg", "SIFT_database/DS4/DS4_H0_V15.jpg", 
+    "SIFT_database/DS4/DS4_H0_V30.jpg", "SIFT_database/DS4/DS4_H0_V45.jpg", 
+    "SIFT_database/DS4/DS4_H0_V60.jpg", "SIFT_database/DS4/DS4_H120_V0.jpg", 
+    "SIFT_database/DS4/DS4_H120_V15.jpg", "SIFT_database/DS4/DS4_H120_V30.jpg", 
+    "SIFT_database/DS4/DS4_H120_V45.jpg", "SIFT_database/DS4/DS4_H120_V60.jpg", 
+    "SIFT_database/DS4/DS4_H150_V0.jpg", "SIFT_database/DS4/DS4_H150_V15.jpg", 
+    "SIFT_database/DS4/DS4_H150_V30.jpg", "SIFT_database/DS4/DS4_H150_V45.jpg", 
+    "SIFT_database/DS4/DS4_H150_V60.jpg", "SIFT_database/DS4/DS4_H180_V0.jpg", 
+    "SIFT_database/DS4/DS4_H180_V15.jpg", "SIFT_database/DS4/DS4_H180_V30.jpg", 
+    "SIFT_database/DS4/DS4_H180_V45.jpg", "SIFT_database/DS4/DS4_H180_V60.jpg", 
+    "SIFT_database/DS4/DS4_H210_V0.jpg", "SIFT_database/DS4/DS4_H210_V15.jpg", 
+    "SIFT_database/DS4/DS4_H210_V30.jpg", "SIFT_database/DS4/DS4_H210_V45.jpg", 
+    "SIFT_database/DS4/DS4_H210_V60.jpg", "SIFT_database/DS4/DS4_H240_V0.jpg", 
+    "SIFT_database/DS4/DS4_H240_V15.jpg", "SIFT_database/DS4/DS4_H240_V30.jpg", 
+    "SIFT_database/DS4/DS4_H240_V45.jpg", "SIFT_database/DS4/DS4_H240_V60.jpg", 
+    "SIFT_database/DS4/DS4_H270_V0.jpg", "SIFT_database/DS4/DS4_H270_V15.jpg", 
+    "SIFT_database/DS4/DS4_H270_V30.jpg", "SIFT_database/DS4/DS4_H270_V45.jpg", 
+    "SIFT_database/DS4/DS4_H270_V60.jpg", "SIFT_database/DS4/DS4_H300_V0.jpg", 
+    "SIFT_database/DS4/DS4_H300_V15.jpg", "SIFT_database/DS4/DS4_H300_V30.jpg", 
+    "SIFT_database/DS4/DS4_H300_V45.jpg", "SIFT_database/DS4/DS4_H300_V60.jpg", 
+    "SIFT_database/DS4/DS4_H30_V0.jpg", "SIFT_database/DS4/DS4_H30_V15.jpg", 
+    "SIFT_database/DS4/DS4_H30_V30.jpg", "SIFT_database/DS4/DS4_H30_V45.jpg", 
+    "SIFT_database/DS4/DS4_H30_V60.jpg", "SIFT_database/DS4/DS4_H330_V0.jpg", 
+    "SIFT_database/DS4/DS4_H330_V15.jpg", "SIFT_database/DS4/DS4_H330_V30.jpg", 
+    "SIFT_database/DS4/DS4_H330_V45.jpg", "SIFT_database/DS4/DS4_H330_V60.jpg", 
+    "SIFT_database/DS4/DS4_H60_V0.jpg", "SIFT_database/DS4/DS4_H60_V15.jpg", 
+    "SIFT_database/DS4/DS4_H60_V30.jpg", "SIFT_database/DS4/DS4_H60_V45.jpg", 
+    "SIFT_database/DS4/DS4_H60_V60.jpg", "SIFT_database/DS4/DS4_H90_V0.jpg", 
+    "SIFT_database/DS4/DS4_H90_V15.jpg", "SIFT_database/DS4/DS4_H90_V30.jpg", 
+    "SIFT_database/DS4/DS4_H90_V45.jpg", "SIFT_database/DS4/DS4_H90_V60.jpg"};
 
-    sem_t *sem_prod_message = sem_open(YOLO_SEM_MESSAGE_PRODUCER_FNAME, 0);
-    if (sem_prod_message == SEM_FAILED) {
-        perror("sem_open/yolocamproducer");
-        exit(EXIT_FAILURE);
-    }
+    char ps2[60][150] = {"SIFT_database/PS2/PS2_H0_V0.jpg", "SIFT_database/PS2/PS2_H0_V15.jpg", 
+    "SIFT_database/PS2/PS2_H0_V30.jpg", "SIFT_database/PS2/PS2_H0_V45.jpg", 
+    "SIFT_database/PS2/PS2_H0_V60.jpg", "SIFT_database/PS2/PS2_H120_V0.jpg", 
+    "SIFT_database/PS2/PS2_H120_V15.jpg", "SIFT_database/PS2/PS2_H120_V30.jpg", 
+    "SIFT_database/PS2/PS2_H120_V45.jpg", "SIFT_database/PS2/PS2_H120_V60.jpg", 
+    "SIFT_database/PS2/PS2_H150_V0.jpg", "SIFT_database/PS2/PS2_H150_V15.jpg", 
+    "SIFT_database/PS2/PS2_H150_V30.jpg", "SIFT_database/PS2/PS2_H150_V45.jpg", 
+    "SIFT_database/PS2/PS2_H150_V60.jpg", "SIFT_database/PS2/PS2_H180_V0.jpg", 
+    "SIFT_database/PS2/PS2_H180_V15.jpg", "SIFT_database/PS2/PS2_H180_V30.jpg", 
+    "SIFT_database/PS2/PS2_H180_V45.jpg", "SIFT_database/PS2/PS2_H180_V60.jpg", 
+    "SIFT_database/PS2/PS2_H210_V0.jpg", "SIFT_database/PS2/PS2_H210_V15.jpg", 
+    "SIFT_database/PS2/PS2_H210_V30.jpg", "SIFT_database/PS2/PS2_H210_V45.jpg", 
+    "SIFT_database/PS2/PS2_H210_V60.jpg", "SIFT_database/PS2/PS2_H240_V0.jpg", 
+    "SIFT_database/PS2/PS2_H240_V15.jpg", "SIFT_database/PS2/PS2_H240_V30.jpg", 
+    "SIFT_database/PS2/PS2_H240_V45.jpg", "SIFT_database/PS2/PS2_H240_V60.jpg", 
+    "SIFT_database/PS2/PS2_H270_V0.jpg", "SIFT_database/PS2/PS2_H270_V15.jpg", 
+    "SIFT_database/PS2/PS2_H270_V30.jpg", "SIFT_database/PS2/PS2_H270_V45.jpg", 
+    "SIFT_database/PS2/PS2_H270_V60.jpg", "SIFT_database/PS2/PS2_H300_V0.jpg", 
+    "SIFT_database/PS2/PS2_H300_V15.jpg", "SIFT_database/PS2/PS2_H300_V30.jpg", 
+    "SIFT_database/PS2/PS2_H300_V45.jpg", "SIFT_database/PS2/PS2_H300_V60.jpg", 
+    "SIFT_database/PS2/PS2_H30_V0.jpg", "SIFT_database/PS2/PS2_H30_V15.jpg", 
+    "SIFT_database/PS2/PS2_H30_V30.jpg", "SIFT_database/PS2/PS2_H30_V45.jpg", 
+    "SIFT_database/PS2/PS2_H30_V60.jpg", "SIFT_database/PS2/PS2_H330_V0.jpg", 
+    "SIFT_database/PS2/PS2_H330_V15.jpg", "SIFT_database/PS2/PS2_H330_V30.jpg", 
+    "SIFT_database/PS2/PS2_H330_V45.jpg", "SIFT_database/PS2/PS2_H330_V60.jpg", 
+    "SIFT_database/PS2/PS2_H60_V0.jpg", "SIFT_database/PS2/PS2_H60_V15.jpg", 
+    "SIFT_database/PS2/PS2_H60_V30.jpg", "SIFT_database/PS2/PS2_H60_V45.jpg", 
+    "SIFT_database/PS2/PS2_H60_V60.jpg", "SIFT_database/PS2/PS2_H90_V0.jpg", 
+    "SIFT_database/PS2/PS2_H90_V15.jpg", "SIFT_database/PS2/PS2_H90_V30.jpg", 
+    "SIFT_database/PS2/PS2_H90_V45.jpg", "SIFT_database/PS2/PS2_H90_V60.jpg"};
 
-    sem_t *sem_cons_message = sem_open(YOLO_SEM_MESSAGE_CONSUMER_FNAME, 1);
-    if (sem_cons_message == SEM_FAILED) {
-        perror("sem_open/yolocamconsumer");
-        exit(EXIT_FAILURE);
-    }
+    char minicraque[60][150] = {"SIFT_database/MiniCraque/MiniCraque_H0_V0.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H0_V15.jpg", "SIFT_database/MiniCraque/MiniCraque_H0_V30.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H0_V45.jpg", "SIFT_database/MiniCraque/MiniCraque_H0_V60.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H120_V0.jpg", "SIFT_database/MiniCraque/MiniCraque_H120_V15.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H120_V30.jpg", "SIFT_database/MiniCraque/MiniCraque_H120_V45.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H120_V60.jpg", "SIFT_database/MiniCraque/MiniCraque_H150_V0.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H150_V15.jpg", "SIFT_database/MiniCraque/MiniCraque_H150_V30.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H150_V45.jpg", "SIFT_database/MiniCraque/MiniCraque_H150_V60.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H180_V0.jpg", "SIFT_database/MiniCraque/MiniCraque_H180_V15.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H180_V30.jpg", "SIFT_database/MiniCraque/MiniCraque_H180_V45.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H180_V60.jpg", "SIFT_database/MiniCraque/MiniCraque_H210_V0.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H210_V15.jpg", "SIFT_database/MiniCraque/MiniCraque_H210_V30.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H210_V45.jpg", "SIFT_database/MiniCraque/MiniCraque_H210_V60.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H240_V0.jpg", "SIFT_database/MiniCraque/MiniCraque_H240_V15.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H240_V30.jpg", "SIFT_database/MiniCraque/MiniCraque_H240_V45.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H240_V60.jpg", "SIFT_database/MiniCraque/MiniCraque_H270_V0.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H270_V15.jpg", "SIFT_database/MiniCraque/MiniCraque_H270_V30.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H270_V45.jpg", "SIFT_database/MiniCraque/MiniCraque_H270_V60.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H300_V0.jpg", "SIFT_database/MiniCraque/MiniCraque_H300_V15.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H300_V30.jpg", "SIFT_database/MiniCraque/MiniCraque_H300_V45.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H300_V60.jpg", "SIFT_database/MiniCraque/MiniCraque_H30_V0.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H30_V15.jpg", "SIFT_database/MiniCraque/MiniCraque_H30_V30.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H30_V45.jpg", "SIFT_database/MiniCraque/MiniCraque_H30_V60.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H330_V0.jpg", "SIFT_database/MiniCraque/MiniCraque_H330_V15.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H330_V30.jpg", "SIFT_database/MiniCraque/MiniCraque_H330_V45.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H330_V60.jpg", "SIFT_database/MiniCraque/MiniCraque_H60_V0.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H60_V15.jpg", "SIFT_database/MiniCraque/MiniCraque_H60_V30.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H60_V45.jpg", "SIFT_database/MiniCraque/MiniCraque_H60_V60.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H90_V0.jpg", "SIFT_database/MiniCraque/MiniCraque_H90_V15.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H90_V30.jpg", "SIFT_database/MiniCraque/MiniCraque_H90_V45.jpg", 
+    "SIFT_database/MiniCraque/MiniCraque_H90_V60.jpg"};
 
-    // CAMERA SHARED MEMORY
+    for (int i = 0; i < 60; i++){
 
-    key_t keyCam;
-
-    // request a key
-    // the key is linked to a filename, so that other programs can access it
-    if (-1 != open(FILENAME_CAM, O_CREAT, 0777)) {
-        keyCam = ftok(FILENAME_CAM, 0);
-    } else {
-        perror("open");
-        exit(1);
-    }
-
-    // get shared block --- create it if it doesn't exist
-    int shared_cam_block_id = shmget(keyCam, CAMERA_BLOCK_SIZE, IPC_CREAT | SHM_R | SHM_W );
-
-    char *result_cam;
-
-    if (shared_cam_block_id == IPC_RESULT_ERROR) {
-        result_cam = NULL;
-    }
-
-    //map the shared block int this process's memory and give me a pointer to it
-    result_cam = (char*) shmat(shared_cam_block_id, NULL, 0);
-    if (result_cam == (char *)IPC_RESULT_ERROR) {
-        result_cam = NULL;
-    }
-
-    // MESSAGE SHARED MEMORY
-
-    key_t keyMes;
-
-    // request a key
-    // the key is linked to a filename, so that other programs can access it
-    if (-1 != open(FILENAME_MESSAGE_YOLO, O_CREAT, 0777)) {
-        keyMes = ftok(FILENAME_MESSAGE_YOLO, 0);
-    } else {
-        perror("open");
-        exit(1);
-    }
-
-    // get shared block --- create it if it doesn't exist
-    int shared_message_block_id = shmget(keyMes, MESSAGE_BLOCK_SIZE, IPC_CREAT | SHM_R | SHM_W );
-
-    char *result_message;
-
-    if (shared_message_block_id == IPC_RESULT_ERROR) {
-        result_message = NULL;
-    }
-
-    //map the shared block int this process's memory and give me a pointer to it
-    result_message = (char*) shmat(shared_message_block_id, NULL, 0);
-    if (result_message == (char *)IPC_RESULT_ERROR) {
-        result_message = NULL;
-    }
-
-    while (1) {
-        input = "shared";
+        input = ps2[i];
         //image im;
         //image sized = load_image_resize(input, net.w, net.h, net.c, &im);
-        
-        sem_wait(sem_prod_cam); // wait for the producer to have an open slot
-        image im = load_image(input, 0, 0, net.c, result_cam);
-        sem_post(sem_cons_cam); // signal that data was acquired
-
+        image im = load_image(input, 0, 0, net.c, NULL);
         image sized;
         if(letter_box) sized = letterbox_image(im, net.w, net.h);
         else sized = resize_image(im, net.w, net.h);
@@ -1764,7 +1814,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         double time = get_time_point();
         network_predict(net, X);
         //network_predict_image(&net, im); letterbox = 1;
-        printf("Predicted in %lf milli-seconds.\n", ((double)get_time_point() - time) / 1000);
+        printf("%s: Predicted in %lf milli-seconds.\n", input, ((double)get_time_point() - time) / 1000);
         //printf("%s: Predicted in %f seconds.\n", input, (what_time_is_it_now()-time));
 
         int nboxes = 0;
@@ -1773,10 +1823,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
             else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
         }
-
-
-        draw_detections_tcc(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output, sem_cons_message, sem_prod_message, result_message);
-
+        draw_detections_tcc(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output, NULL, NULL, input);
 
         save_image(im, "predictions");
         if (!dont_show) {
@@ -1830,16 +1877,10 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             destroy_all_windows_cv();
         }
 
-        if (filename) break;
+        //if (filename) break;
+
+        
     }
-
-    sem_close(sem_prod_cam);
-    sem_close(sem_cons_cam);
-    sem_close(sem_prod_message);
-    sem_close(sem_cons_message);
-
-    shmdt(result_cam);
-    shmdt(result_message);
 
     if (json_file) {
         char *tmp = "\n]";
@@ -1898,19 +1939,10 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
     int j;
     float nms = .45;    // 0.4F
-    while (1) {
-        if (filename) {
-            strncpy(input, filename, 256);
-            if (strlen(input) > 0)
-                if (input[strlen(input) - 1] == 0x0d) input[strlen(input) - 1] = 0;
-        }
-        else {
-            printf("Enter Image Path: ");
-            fflush(stdout);
-            input = fgets(input, 256, stdin);
-            if (!input) break;
-            strtok(input, "\n");
-        }
+
+    while(1) {
+
+        
         //image im;
         //image sized = load_image_resize(input, net.w, net.h, net.c, &im);
         image im = load_image(input, 0, 0, net.c, NULL);

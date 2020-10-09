@@ -492,14 +492,55 @@ void draw_detections_tcc(image im, detection *dets, int num, float thresh, char 
 
         cx = snprintf(temp, sizeof(temp), "Object Detected: %s: %.0f%%", names[best_class], selected_detections[i].det.prob[best_class] * 100);
 
-        snprintf(temp+cx, sizeof(temp)-cx, "\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-            round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
-            round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
-            round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
+        snprintf(temp+cx, sizeof(temp)-cx, "\t(center_x: %4.16f   center_y: %4.16f   width: %4.16f   height: %4.16f)\n",
+            selected_detections[i].det.bbox.x, selected_detections[i].det.bbox.y,
+            selected_detections[i].det.bbox.w, selected_detections[i].det.bbox.h);
 
-        sem_wait(sem_cons_message); // wait for the consumer to have an open slot
-        strncpy(result_message, temp, MESSAGE_BLOCK_SIZE);
-        sem_post(sem_prod_message); // signal that something is in memory
+        printf("%s\n", temp);
+
+
+        int fim = 18;
+        int comeco = 0;
+
+        int l = strlen(result_message);
+
+        memmove(result_message + comeco, result_message + comeco + fim, l - fim + 1);
+
+        int fim_2 = 4;
+        int comeco_2 = strlen(result_message) - 4;
+
+        int l_2 = strlen(result_message);
+
+        memmove(result_message + comeco_2, result_message + comeco_2 + fim_2, l_2 - fim_2 + 1);
+
+        char *txtAddress = "SIFT_database/PS2/bb/";
+
+        const size_t len1 = strlen(txtAddress);
+        const size_t len2 = strlen(result_message);
+        const size_t len3 = strlen(".txt");
+
+        char *output_string = malloc(len1 + len2 + len3 + 1);
+
+        memcpy(output_string, txtAddress, len1);
+        memcpy(output_string + len1, result_message, len2);
+        memcpy(output_string + len1 + len2, ".txt", len3 + 1);
+
+        printf("%s\n", output_string);
+
+        FILE *f = fopen(output_string, "w");
+
+        if (f == NULL) {
+            printf("ERROR ON FILE OPENING\n");
+            exit(1);
+        }
+
+        fprintf(f, temp);
+
+        fclose(f);
+
+        free(output_string);
+
+
 
         //printf("Object Detected: %s: %.0f%%", names[best_class],    selected_detections[i].det.prob[best_class] * 100);
         

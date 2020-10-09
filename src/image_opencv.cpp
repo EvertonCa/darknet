@@ -21,14 +21,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/video/video.hpp>
 
-#include <semaphore.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 // includes for OpenCV >= 3.x
 #ifndef CV_VERSION_EPOCH
 #include <opencv2/core/types.hpp>
@@ -84,12 +76,6 @@ using std::endl;
 #ifndef CV_AA
 #define CV_AA cv::LINE_AA
 #endif
-
-#define HEIGHT 480
-#define WIDTH 640
-#define CHANNELS 3
-#define CAMERA_BLOCK_SIZE (WIDTH*HEIGHT*CHANNELS)
-#define IPC_RESULT_ERROR (-1)
 
 extern "C" {
 
@@ -172,29 +158,12 @@ cv::Mat load_image_mat(char *filename, int channels)
 
 extern "C" image load_image_cv(char *filename, int channels, char *result)
 {
-    if (strcmp(filename, "shared")){
-        //std::cout << "Entrei " << filename << std::endl;
-        cv::Mat mat = load_image_mat(filename, channels);
+    cv::Mat mat = load_image_mat(filename, channels);
 
-        if (mat.empty()) {
-            return make_image(10, 10, channels);
-        }
-
-        //std::cout << "Sai" << std::endl;
-        return mat_to_image(mat);
-
-    } else {
-
-        cv::Mat temp = cv::Mat(HEIGHT, WIDTH, 16, result, CHANNELS * WIDTH); // creates a frame from memory
-        cv::Mat mat;
-        cv::cvtColor(temp, mat, cv::COLOR_BGR2RGB);
-
-        if (mat.empty()) {
-            return make_image(10, 10, CHANNELS);
-        }
-
-        return mat_to_image(mat);
+    if (mat.empty()) {
+        return make_image(10, 10, channels);
     }
+    return mat_to_image(mat);
 }
 // ----------------------------------------
 
@@ -261,14 +230,12 @@ extern "C" int get_width_cv(mat_cv *ipl_src)
     return ipl->width;
 }
 // ----------------------------------------
-
 extern "C" int get_height_cv(mat_cv *ipl_src)
 {
     IplImage *ipl = (IplImage *)ipl_src;
     return ipl->height;
 }
 // ----------------------------------------
-
 extern "C" void release_ipl(mat_cv **ipl)
 {
     IplImage **ipl_img = (IplImage **)ipl;
@@ -276,11 +243,9 @@ extern "C" void release_ipl(mat_cv **ipl)
     *ipl_img = NULL;
 }
 // ----------------------------------------
-
 // ====================================================================
 // image-to-ipl, ipl-to-image, image_to_mat, mat_to_image
 // ====================================================================
-
 extern "C" mat_cv *image_to_ipl(image im)
 {
     int x, y, c;
@@ -297,7 +262,6 @@ extern "C" mat_cv *image_to_ipl(image im)
     return (mat_cv *)disp;
 }
 // ----------------------------------------
-
 extern "C" image ipl_to_image(mat_cv* src_ptr)
 {
     IplImage* src = (IplImage*)src_ptr;
@@ -308,7 +272,6 @@ extern "C" image ipl_to_image(mat_cv* src_ptr)
     unsigned char *data = (unsigned char *)src->imageData;
     int step = src->widthStep;
     int i, j, k;
-
     for (i = 0; i < h; ++i) {
         for (k = 0; k < c; ++k) {
             for (j = 0; j < w; ++j) {
@@ -319,14 +282,12 @@ extern "C" image ipl_to_image(mat_cv* src_ptr)
     return im;
 }
 // ----------------------------------------
-
 cv::Mat ipl_to_mat(IplImage *ipl)
 {
     Mat m = cvarrToMat(ipl, true);
     return m;
 }
 // ----------------------------------------
-
 IplImage *mat_to_ipl(cv::Mat mat)
 {
     IplImage *ipl = new IplImage;
@@ -419,8 +380,7 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 extern "C" void destroy_all_windows_cv()
 {
     try {
-        cv::waitKey(1000/30);
-        //cv::destroyAllWindows();
+        cv::destroyAllWindows();
     }
     catch (...) {
         cerr << "OpenCV exception: destroy_all_windows_cv \n";
@@ -583,8 +543,6 @@ extern "C" void *open_video_stream(const char *f, int c, int w, int h, int fps)
     if(fps) cap->set(CV_CAP_PROP_FPS, w);
     return (void *) cap;
 }
-
-
 extern "C" image get_image_from_stream(void *p)
 {
     VideoCapture *cap = (VideoCapture *)p;
@@ -593,7 +551,6 @@ extern "C" image get_image_from_stream(void *p)
     if(m.empty()) return make_empty_image(0,0,0);
     return mat_to_image(m);
 }
-
 extern "C" int show_image_cv(image im, const char* name, int ms)
 {
     Mat m = image_to_mat(im);
@@ -1161,12 +1118,12 @@ extern "C" void draw_train_loss(char *windows_name, mat_cv* img_src, int img_siz
             if (iteration_old == 0)
                 cv::putText(img, accuracy_name, cv::Point(10, 12), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 0, 0), 1, CV_AA);
 
-	        if (iteration_old != 0){
-            	    cv::line(img,
+            if (iteration_old != 0){
+                    cv::line(img,
                         cv::Point(img_offset + draw_size * (float)iteration_old / max_batches, draw_size * (1 - old_precision)),
                         cv::Point(img_offset + draw_size * (float)current_batch / max_batches, draw_size * (1 - precision)),
                         CV_RGB(255, 0, 0), 1, 8, 0);
-	        }
+            }
 
             sprintf(char_buff, "%2.1f%% ", precision * 100);
             cv::putText(img, char_buff, cv::Point(10, 28), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 5, CV_AA);
@@ -1448,9 +1405,9 @@ extern "C" void cv_draw_object(image sized, float *truth_cpu, int max_boxes, int
 
     while (!selected) {
 #ifndef CV_VERSION_EPOCH
-        int pressed_key = cv::waitKeyEx(20);	// OpenCV 3.x
+        int pressed_key = cv::waitKeyEx(20);    // OpenCV 3.x
 #else
-        int pressed_key = cv::waitKey(20);		// OpenCV 2.x
+        int pressed_key = cv::waitKey(20);      // OpenCV 2.x
 #endif
         if (pressed_key == 27 || pressed_key == 1048603) break;// break;  // ESC - save & exit
 
