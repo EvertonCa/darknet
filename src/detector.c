@@ -128,7 +128,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         layer lk = net.layers[k];
         if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
             l = lk;
-            printf(" Detection layer: %d - type = %d \n", k, l.type);
+            //printf(" Detection layer: %d - type = %d \n", k, l.type);
         }
     }
 
@@ -674,7 +674,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
         layer lk = net.layers[k];
         if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
             l = lk;
-            printf(" Detection layer: %d - type = %d \n", k, l.type);
+            //printf(" Detection layer: %d - type = %d \n", k, l.type);
         }
     }
     int classes = l.classes;
@@ -995,7 +995,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
         layer lk = net.layers[k];
         if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
             l = lk;
-            printf(" Detection layer: %d - type = %d \n", k, l.type);
+            //printf(" Detection layer: %d - type = %d \n", k, l.type);
         }
     }
     int classes = l.classes;
@@ -1750,7 +1750,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             layer lk = net.layers[k];
             if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
                 l = lk;
-                printf(" Detection layer: %d - type = %d \n", k, l.type);
+                //printf(" Detection layer: %d - type = %d \n", k, l.type);
             }
         }
 
@@ -1764,7 +1764,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         double time = get_time_point();
         network_predict(net, X);
         //network_predict_image(&net, im); letterbox = 1;
-        printf("Predicted in %lf milli-seconds.\n", ((double)get_time_point() - time) / 1000);
+        //printf("Predicted in %lf milli-seconds.\n", ((double)get_time_point() - time) / 1000);
         //printf("%s: Predicted in %f seconds.\n", input, (what_time_is_it_now()-time));
 
         int nboxes = 0;
@@ -1926,7 +1926,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
             layer lk = net.layers[k];
             if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
                 l = lk;
-                printf(" Detection layer: %d - type = %d \n", k, l.type);
+                //printf(" Detection layer: %d - type = %d \n", k, l.type);
             }
         }
 
